@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reservas</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <h1>TODAS RESERVAS</h1>
+    <div>
+      <div class="search-container">
+        <div class="upload-container">
+          <input type="file" id="csv-file" class="input-hidden" accept=".csv" />
+          <label for="csv-file" class="custom-file-upload">
+            <i class="fas fa-upload"></i> Escolher Arquivo CSV
+          </label>
+          <span id="file-name">Nenhum arquivo selecionado</span>
+        </div>
+        <div class="button-group">
+          <div class="section-label">Filtros</div>
+          <button type="button" onclick="filtrarTabela('6')">Bloco 06</button>
+          <button type="button" onclick="filtrarTabela('7')">Bloco 07</button>
+          <button type="button" onclick="filtrarTabela('8')">Bloco 08</button>
+          <button type="button" onclick="filtrarTabela('10')">Bloco 10</button>
+          <button
+            type="button"
+            onclick="filtrarTabela('auditorio')"
+          >
+            Auditórios
+          </button>
+          <button
+            type="button"
+            onclick="filtrarTabela('todos')"
+            style="background-color: #7f8c8d"
+          >
+            Ver Todos
+          </button>
+
+          <div class="section-label">Gerenciamento</div>
+        
+          <div class="actions-container">
+            <button type="button" class="btn-add" id="btn-adicionar">
+            <span class="icon-plus"></span>
+            Nova Reserva
+          </button>
+          <button class="btn-update" title="Adicionar sem apagar" style="background-color: #27ae60; margin-left: 10px;">
+    <span class="icon-plus"></span>
+    Atualizar (Adicionar)
+  </button>
+            <button class="btn-save" title="Salvar Alterações">
+              <span class="icon-save"></span>
+              Salvar Reservas
+            </button>
+            <button type="button"  class="btn-editar" id="btn-editar-vistas" style="background-color: #3498db;">
+    <i class="fas fa-edit"></i> Editar Reservas Existentes
+</button>
+  <button type="button" class="btn-clear" id="btn-limpar-tabela" title="Limpar todas as linhas">
+    <i class="fas fa-trash-alt"></i> Limpar Tabela
+</button>
+</div>
+          </div>
+        </div>
+      </div>
+      <pre id="resultado-json"></pre>
+      <div class="bloco-container">
+        <div class="bloco-header_reserva">Reservas Agendadas</div>
+        <div>
+          <div class="table-scroll-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Bloco</th>
+                  <th>Horário</th>
+                  <th>Local</th>
+                  <th>Observação</th>
+                  <th>Insumos</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody class="tabela-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+      import {
+        getDatabase,
+        ref,
+        set,
+      } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyCHCfz1oZIsXC_bLc2K8z_kb3llD2HOAV0",
+        authDomain: "sistema-reservas-5647c.firebaseapp.com",
+        databaseURL:
+          "https://sistema-reservas-5647c-default-rtdb.firebaseio.com",
+        projectId: "sistema-reservas-5647c",
+        storageBucket: "sistema-reservas-5647c.firebasestorage.app",
+        messagingSenderId: "673418191256",
+        appId: "1:673418191256:web:b281c439bf00fce1af0bed",
+        measurementId: "G-8PP77DJR9X",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
+
+      window.salvarNoFirebase = async (dados) => {
+        try {
+          await set(ref(db, "reservas"), dados);
+          alert("✅ Sucesso! Verifique seu console do Firebase.");
+        } catch (e) {
+          console.error(e);
+          alert("Erro ao salvar: " + e.message);
+        }
+      };
+
+    import { get, child } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
+
+    window.atualizarNoFirebase = async (dados) => {
+      try {
+        const dbRef = ref(db);
+        const snapshot = await get(child(dbRef, "reservas"));
+    
+        let proximoIndice = 0;
+        if (snapshot.exists()) {
+        proximoIndice = snapshot.val().length;
+        }
+
+   
+        const promessas = dados.map((item, index) => {
+        const numeroRegistro = proximoIndice + index;
+        return set(ref(db, `reservas/${numeroRegistro}`), item);
+      });
+
+    await Promise.all(promessas);
+    alert(`✅ ${dados.length} reservas adicionadas com sucesso a partir do índice ${proximoIndice}!`);
+     
+  } catch (e) {
+    console.error("Erro ao atualizar:", e);
+    alert("Erro: " + e.message);
+  }
+};
+
+window.buscarReservasFirebase = async () => {
+  const dbRef = ref(db);
+  try {
+    const snapshot = await get(child(dbRef, "reservas"));
+    if (snapshot.exists()) {
+      return snapshot.val();
+    } else {
+      alert("Nenhuma reserva encontrada.");
+      return [];
+    }
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
+};
+    </script>
+    <script src="/admin/main.js"></script>
+  </body>
+</html>
