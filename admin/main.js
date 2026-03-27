@@ -6,6 +6,7 @@ const btnSave = document.querySelector(".btn-save");
 const btnUpdate = document.querySelector(".btn-update");
 const btnEditarVistas = document.getElementById("btn-editar-vistas");
 const btnLimpar = document.getElementById("btn-limpar-tabela");
+const btnExcluirMassa = document.getElementById("btn-excluir-selecionados");
 
 fileInput.addEventListener("change", function (e) {
   if (this.files && this.files.length > 0) {
@@ -101,7 +102,7 @@ fileInput.addEventListener("change", function (e) {
 
       linhasHtml += `
         <tr>
-          <td>${item.Data}</td>
+          <td><input type="checkbox" class="row-checkbox"></td> <td>${item.Data}</td>
           <td style="text-align: center; font-weight: bold;">${numeroBloco}</td> 
           <td>${item.HorarioInicial} - ${item.HorarioFinal}</td>
           <td>${localLimpo}</td> 
@@ -117,7 +118,7 @@ fileInput.addEventListener("change", function (e) {
   leitor.readAsText(arquivo);
 });
 
-container.addEventListener("click", function (event) {
+document.addEventListener("click", function (event) {
   const btnDelete = event.target.closest(".btn-delete");
 
   if (btnDelete) {
@@ -129,83 +130,69 @@ container.addEventListener("click", function (event) {
 });
 
 btnSave.addEventListener("click", function () {
-  const dadosParaSalvar = [];
-  const linhas = document.querySelectorAll(".tabela-body tr");
-
-  const pegarValor = (celula) => {
-    const input = celula.querySelector("input");
-    return input ? input.value : celula.innerText.trim();
-  };
-
-  linhas.forEach((linha) => {
-    const colunas = linha.querySelectorAll("td");
-    if (colunas.length >= 6) {
-      const reserva = {
-        data: pegarValor(colunas[0]),
-        bloco: pegarValor(colunas[1]),
-        horario: pegarValor(colunas[2]),
-        local: pegarValor(colunas[3]),
-        observacao: pegarValor(colunas[4]),
-        insumos: pegarValor(colunas[5]),
-      };
-      if (reserva.data || reserva.local) {
-        dadosParaSalvar.push(reserva);
-      }
-    }
-  });
+  const dadosParaSalvar = capturarDadosDaTabela();
 
   if (dadosParaSalvar.length === 0) {
     alert("⚠️ Nenhuma reserva encontrada para salvar.");
     return;
   }
 
-  if (typeof window.salvarNoFirebase === "function") {
-    // Chamamos a função do Firebase
-    window.salvarNoFirebase(dadosParaSalvar).then(() => {
-      // --- AS LINHAS QUE VOCÊ PRECISA ADICIONAR ESTÃO AQUI ---
-      content.innerHTML = ""; // Limpa as linhas da tabela no HTML
-      fileInput.value = ""; // Reseta o campo de upload de arquivo
-      fileNameDisplay.textContent = "Nenhum arquivo selecionado"; // Reseta o texto
-      console.log("Tabela limpa após salvamento.");
-      // -------------------------------------------------------
-    });
-  } else {
-    alert("❌ Erro crítico: Função do Firebase não carregada.");
+  if (
+    confirm(`Deseja salvar ${dadosParaSalvar.length} reservas no Firebase?`)
+  ) {
+    if (typeof window.salvarNoFirebase === "function") {
+      window.salvarNoFirebase(dadosParaSalvar).then(() => {
+        content.innerHTML = "";
+        fileInput.value = "";
+        fileNameDisplay.textContent = "Nenhum arquivo selecionado";
+      });
+    } else {
+      alert("❌ Erro crítico: Função do Firebase não carregada.");
+    }
   }
 });
 
-// Função única para capturar e formatar os valores da tabela
 function capturarDadosDaTabela() {
   const dadosParaSalvar = [];
+  // Seleciona todas as linhas de todas as tabelas presentes na tela
   const linhas = document.querySelectorAll(".tabela-body tr");
 
   const pegarValorFormatado = (celula) => {
+    if (!celula) return "";
     const input = celula.querySelector("input");
-    if (!input) return celula.innerText.trim();
 
+    // Ignora a célula se for apenas a checkbox
+    if (input && input.classList.contains("row-checkbox")) return null;
+
+    if (!input) return celula.innerText.trim();
     let valor = input.value;
 
-    // SE FOR INPUT DE DATA: Inverte de AAAA-MM-DD para DD/MM/AAAA
     if (input.type === "date" && valor.includes("-")) {
       const partes = valor.split("-");
-      if (partes[0].length === 4) {
-        // Se o primeiro bloco for o ano
-        return `${partes[2]}/${partes[1]}/${partes[0]}`;
-      }
+      return partes[0].length === 4
+        ? `${partes[2]}/${partes[1]}/${partes[0]}`
+        : valor;
     }
     return valor;
   };
 
   linhas.forEach((linha) => {
     const colunas = linha.querySelectorAll("td");
-    if (colunas.length >= 6) {
+    if (colunas.length === 0) return;
+
+    // Detecta se a primeira coluna é checkbox para ajustar o índice
+    const temCheckbox = colunas[0].querySelector(".row-checkbox") !== null;
+    const i = temCheckbox ? 1 : 0;
+
+    // Verifica se a linha tem o mínimo de colunas necessárias (6 dados + botões/checkbox)
+    if (colunas.length >= 6 + i) {
       const reserva = {
-        data: pegarValorFormatado(colunas[0]),
-        bloco: pegarValorFormatado(colunas[1]),
-        horario: pegarValorFormatado(colunas[2]),
-        local: pegarValorFormatado(colunas[3]),
-        observacao: pegarValorFormatado(colunas[4]),
-        insumos: pegarValorFormatado(colunas[5]),
+        data: pegarValorFormatado(colunas[i]),
+        bloco: pegarValorFormatado(colunas[i + 1]),
+        horario: pegarValorFormatado(colunas[i + 2]),
+        local: pegarValorFormatado(colunas[i + 3]),
+        observacao: pegarValorFormatado(colunas[i + 4]),
+        insumos: pegarValorFormatado(colunas[i + 5]),
       };
 
       if (reserva.data || reserva.local) {
@@ -215,7 +202,6 @@ function capturarDadosDaTabela() {
   });
   return dadosParaSalvar;
 }
-
 btnUpdate.addEventListener("click", function () {
   const dados = capturarDadosDaTabela();
 
@@ -226,7 +212,6 @@ btnUpdate.addEventListener("click", function () {
 
   if (typeof window.atualizarNoFirebase === "function") {
     window.atualizarNoFirebase(dados).then(() => {
-      // Limpa após atualizar
       content.innerHTML = "";
       fileInput.value = "";
       fileNameDisplay.textContent = "Nenhum arquivo selecionado";
@@ -237,19 +222,16 @@ btnUpdate.addEventListener("click", function () {
 });
 
 btnLimpar.addEventListener("click", function () {
-  // 1. Pedir confirmação ao usuário
   const confirmar = confirm(
     "Tem certeza que deseja limpar toda a tabela? Os dados não salvos serão perdidos.",
   );
 
   if (confirmar) {
-    // 2. Limpar o corpo da tabela
     const content = document.querySelector(".tabela-body");
     if (content) {
       content.innerHTML = "";
     }
 
-    // 3. Resetar o campo de arquivo (upload)
     const fileInput = document.getElementById("csv-file");
     const fileNameDisplay = document.getElementById("file-name");
 
@@ -269,7 +251,6 @@ function filtrarTabela(criterio) {
     if (colunas.length < 4) return;
 
     const valorBloco = colunas[1].innerText.trim();
-    // Pegamos o texto do Local ou o valor do input caso seja uma linha nova
     const inputLocal = colunas[3].querySelector("input");
     const valorLocal = inputLocal
       ? inputLocal.value.toLowerCase()
@@ -277,9 +258,7 @@ function filtrarTabela(criterio) {
 
     if (criterio === "todos") {
       linha.style.display = "";
-    }
-    // Novo filtro: Verifica se a palavra 'auditorio' existe no texto do local
-    else if (criterio === "auditorio") {
+    } else if (criterio === "auditorio") {
       if (
         valorLocal.includes("auditorio") ||
         valorLocal.includes("auditório")
@@ -288,9 +267,7 @@ function filtrarTabela(criterio) {
       } else {
         linha.style.display = "none";
       }
-    }
-    // Filtro por número do bloco
-    else if (valorBloco === criterio) {
+    } else if (valorBloco === criterio) {
       linha.style.display = "";
     } else {
       linha.style.display = "none";
@@ -321,10 +298,24 @@ function csvToJson(csv) {
       .replace(/\s+/g, "");
   });
 
-  return linhas.slice(1).map((linha) => {
-    const valores = linha.split(";");
-    const objeto = {};
+  const idsProcessados = new Set();
+  const resultado = [];
 
+  const indiceID = cabecalhosLimpos.indexOf("IDdaReserva");
+
+  linhas.slice(1).forEach((linha) => {
+    const valores = linha.split(";");
+
+    const idAtual = valores[indiceID] ? valores[indiceID].trim() : null;
+
+    if (idAtual && idsProcessados.has(idAtual)) {
+      console.log(`Item com ID ${idAtual} ignorado (duplicado).`);
+      return;
+    }
+
+    if (idAtual) idsProcessados.add(idAtual);
+
+    const objeto = {};
     cabecalhosLimpos.forEach((chave, i) => {
       if (!camposParaRemover.includes(chave)) {
         objeto[chave] = valores[i] ? valores[i].trim() : "";
@@ -333,28 +324,27 @@ function csvToJson(csv) {
 
     objeto["Observacao"] = "";
     objeto["Insumos"] = "";
-    console.log(objeto);
 
-    return objeto;
+    resultado.push(objeto);
   });
+
+  return resultado;
 }
 
 const btnAdicionar = document.getElementById("btn-adicionar");
 
 btnAdicionar.addEventListener("click", () => {
   const novaLinha = document.createElement("tr");
-
   novaLinha.innerHTML = `
+    <td><input type="checkbox" class="row-checkbox"></td>
     <td><input type="date" class="searchInput"></td>
-    <td><input type="text" placeholder="Bloco" class="searchInput"></td>
-    <td><input type="text" placeholder="00:00 - 00:00" class="searchInput"></td>
-    <td><input type="text" placeholder="Local" class="searchInput"></td>
-    <td><input type="text" placeholder="Observação" class="searchInput"></td>
-    <td><input type="text" placeholder="Insumos" class="searchInput"></td>
+    <td><input type="text" class="searchInput" style="width:50px"></td>
+    <td><input type="text" class="searchInput" placeholder="00:00 - 00:00"></td>
+    <td><input type="text" class="searchInput" placeholder="Local"></td>
+    <td><input type="text" class="searchInput" placeholder="Observação"></td>
+    <td><input type="text" class="searchInput" placeholder="Insumos"></td>
     <td><button class="btn-delete" title="Excluir">Excluir</button></td>
   `;
-
-  // Adiciona a nova linha no topo da tabela
   content.prepend(novaLinha);
 });
 
@@ -366,19 +356,16 @@ btnEditarVistas.addEventListener("click", async () => {
 });
 
 function renderizarModoEdicao(dados) {
-  // 1. Esconder elementos que não pertencem à edição
   const uploadContainer = document.querySelector(".upload-container");
   const buttonGroup = document.querySelector(".button-group");
-  const h1Principal = document.querySelector("h1"); // O "TODAS RESERVAS"
+  const h1Principal = document.querySelector("h1");
 
   if (uploadContainer) uploadContainer.style.display = "none";
   if (buttonGroup) buttonGroup.style.display = "none";
   if (h1Principal) h1Principal.style.display = "none";
 
-  // 2. Preparar o container principal
   const containerBlocos = document.querySelector(".bloco-container");
 
-  // Filtro de blocos (sua lógica atual)
   const blocosPermitidos = ["6", "7", "8", "10", "06", "07", "08"];
   const blocosUnicos = [
     ...new Set(
@@ -388,7 +375,6 @@ function renderizarModoEdicao(dados) {
     ),
   ].sort((a, b) => parseInt(a) - parseInt(b));
 
-  // 3. Criar o cabeçalho de Edição com os botões específicos
   let htmlContent = `
         <div class="header-edicao-fixo">
             <h2>Modo de Edição</h2>
@@ -403,7 +389,6 @@ function renderizarModoEdicao(dados) {
         </div>
     `;
 
-  // 4. Gerar os blocos (sua lógica de TRs com Inputs)
   blocosUnicos.forEach((bloco) => {
     const dadosFiltrados = dados.filter((item) => String(item.bloco) === bloco);
     const linhas = dadosFiltrados
@@ -442,13 +427,27 @@ function renderizarModoEdicao(dados) {
 
   containerBlocos.innerHTML = htmlContent;
 
-  // 5. Reatribuir o evento de salvar ao novo botão criado
   document
     .getElementById("btn-salvar-geral")
     .addEventListener("click", function () {
-      const novosDados = capturarDadosDaTabela(); // Sua função que varre os inputs
-      if (window.salvarNoFirebase) {
-        window.salvarNoFirebase(novosDados);
+      const novosDados = capturarDadosDaTabela();
+
+      if (novosDados.length === 0) {
+        alert("Nenhum dado para salvar.");
+        return;
+      }
+
+      if (
+        confirm(
+          `Deseja salvar as alterações em ${novosDados.length} registros?`,
+        )
+      ) {
+        if (window.salvarNoFirebase) {
+          window.salvarNoFirebase(novosDados).then(() => {
+            alert("Alterações salvas com sucesso!");
+            window.location.reload(); // Recarrega para sair do modo edição
+          });
+        }
       }
     });
 
@@ -468,3 +467,37 @@ function setupAccordionEdicao() {
     });
   });
 }
+
+const btnExcluirSelecionados = document.getElementById(
+  "btn-excluir-selecionados",
+);
+
+btnExcluirSelecionados.addEventListener("click", function () {
+  const checkboxes = document.querySelectorAll(".row-checkbox:checked");
+
+  if (checkboxes.length === 0) {
+    alert("Nenhum item selecionado para excluir.");
+    return;
+  }
+
+  if (confirm(`Deseja excluir os ${checkboxes.length} itens selecionados?`)) {
+    checkboxes.forEach((checkbox) => {
+      const linha = checkbox.closest("tr");
+      linha.remove();
+    });
+
+    const selectAll = document.getElementById("select-all");
+    if (selectAll) selectAll.checked = false;
+  }
+});
+
+document.addEventListener("change", function (e) {
+  if (e.target && e.target.id === "select-all") {
+    const checkboxes = document.querySelectorAll(".row-checkbox");
+    checkboxes.forEach((cb) => {
+      if (cb.closest("tr").style.display !== "none") {
+        cb.checked = e.target.checked;
+      }
+    });
+  }
+});
