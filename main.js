@@ -96,10 +96,21 @@ async function searchData() {
     const dataExibicao = dados[0]?.data || "";
 
     // Ordenação por horário e depois local
-    dados.sort(
-      (a, b) =>
-        a.horario.localeCompare(b.horario) || a.local.localeCompare(b.local),
-    );
+     dados.sort((a, b) => {
+      const inicioA = a.horario.split("-")[0].trim();
+      const inicioB = b.horario.split("-")[0].trim();
+
+      const compHora = inicioA.localeCompare(inicioB);
+
+      if (compHora !== 0) {
+        return compHora;
+      }
+
+      return a.local.localeCompare(b.local, undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+    });
 
     // Filtro de blocos (Normalizando para comparar números como strings)
     const blocosPermitidos = ["6", "7", "8", "10", "06", "07", "08"];
