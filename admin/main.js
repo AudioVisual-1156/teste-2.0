@@ -248,13 +248,13 @@ function filtrarTabela(criterio) {
 
   linhas.forEach((linha) => {
     const colunas = linha.querySelectorAll("td");
-    if (colunas.length < 4) return;
+    if (colunas.length < 5) return;
 
-    const valorBloco = colunas[1].innerText.trim();
-    const inputLocal = colunas[3].querySelector("input");
+    const valorBloco = colunas[2].innerText.trim();
+    const inputLocal = colunas[4].querySelector("input");
     const valorLocal = inputLocal
       ? inputLocal.value.toLowerCase()
-      : colunas[3].innerText.toLowerCase();
+      : colunas[4].innerText.toLowerCase();
 
     if (criterio === "todos") {
       linha.style.display = "";
